@@ -11,6 +11,7 @@ testcases
 *.tbl
 *.txt
 *.sql
+*.out
 
 # MacOS custom attributes snom.storage created by Finder
 .DS_Store
