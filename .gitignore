@@ -1,3 +1,23 @@
 # Compiled class file
 classess.*
 *.class
+
+# Test cases
+testcases
+!README.md
+*.det
+*.md
+*.stat
+*.tbl
+*.txt
+*.sql
+
+# MacOS custom attributes snom.storage created by Finder
+.DS_Store
+*.iml
+bin/
+
+# IDEA
+/.idea/
+/out/
+/*.iml
