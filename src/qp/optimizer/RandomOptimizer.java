@@ -120,7 +120,14 @@ public class RandomOptimizer {
             Operator initPlan = rip.prepareInitialPlan();
             modifySchema(initPlan);
             System.out.println("-----------initial Plan-------------");
+            if(this.sqlquery.isDistinct()){
+                initPlan.setIsDistinct(true);
+                System.out.print("Distinct(");
+            }
             Debug.PPrint(initPlan);
+            if(this.sqlquery.isDistinct()){
+                System.out.print(")");
+            }
             PlanCost pc = new PlanCost();
             long initCost = pc.getCost(initPlan);
             System.out.println(initCost);
@@ -184,7 +191,13 @@ public class RandomOptimizer {
         }
         System.out.println("\n\n\n");
         System.out.println("---------------------------Final Plan----------------");
+        if(this.sqlquery.isDistinct()){
+            System.out.print("Distinct(");
+        }
         Debug.PPrint(finalPlan);
+        if(this.sqlquery.isDistinct()){
+            System.out.print(")");
+        }
         System.out.println("  " + MINCOST);
         return finalPlan;
     }
