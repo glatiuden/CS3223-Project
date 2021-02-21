@@ -4,6 +4,7 @@
 
 import qp.operators.Debug;
 import qp.operators.Operator;
+import qp.operators.Project;
 import qp.optimizer.BufferManager;
 import qp.optimizer.PlanCost;
 import qp.optimizer.RandomOptimizer;
@@ -12,6 +13,7 @@ import qp.parser.parser;
 import qp.utils.*;
 
 import java.io.*;
+import java.util.ArrayList;
 
 public class QueryMain {
 
@@ -133,7 +135,13 @@ public class QueryMain {
      **/
     private static void printFinalPlan(Operator root, String[] args, BufferedReader in) {
         System.out.println("----------------------Execution Plan----------------");
+        if(root.isDistinct()){
+            System.out.print("Distinct(");
+        }
         Debug.PPrint(root);
+        if(root.isDistinct()){
+            System.out.print(")");
+        }
         PlanCost pc = new PlanCost();
         System.out.printf("\nExpected cost: %d\n", pc.getCost(root));
         if (args.length < 5) {
@@ -174,9 +182,32 @@ public class QueryMain {
 
         /** Print each tuple in the result **/
         Batch resultbatch;
+        ArrayList<Tuple> printedTuples = new ArrayList<>();
         while ((resultbatch = root.next()) != null) {
             for (int i = 0; i < resultbatch.size(); ++i) {
-                printTuple(resultbatch.get(i));
+                Tuple resultTuple = resultbatch.get(i);
+
+                /** Check if tuple is distinct before printing **/
+                if (root.isDistinct()) {
+                    if(printedTuples.isEmpty()){
+                        printedTuples.add(resultTuple);
+                        printTuple(resultTuple);
+                    }else{
+                        boolean isSame = false;
+                        for(Tuple printedTuple: printedTuples){
+                            if (resultTuple.isEquals(printedTuple)) {
+                                isSame = true;
+                                break;
+                            }
+                        }
+                        if(!isSame){
+                            printedTuples.add(resultTuple);
+                            printTuple(resultTuple);
+                        }
+                    }
+                }else{
+                    printTuple(resultTuple);
+                }
             }
         }
         root.close();
