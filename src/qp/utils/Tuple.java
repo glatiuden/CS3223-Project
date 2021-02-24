@@ -69,6 +69,18 @@ public class Tuple implements Serializable {
     }
 
     /**
+     * Compare whether two tuples are the same in the same table for every attribute
+     */
+    public boolean isEquals(Tuple tuple){
+        for(int i = 0; i < this._data.size(); i++){
+            if(compareTuples(this, tuple, i) != 0){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Compare two tuples in the same table on given attribute
      **/
     public static int compareTuples(Tuple left, Tuple right, int index) {

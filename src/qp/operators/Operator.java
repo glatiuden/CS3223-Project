@@ -8,8 +8,9 @@ import qp.utils.Schema;
 
 public class Operator {
 
-    int optype;     // Whether it is OpType.SELECT/ Optype.PROJECT/OpType.JOIN
-    Schema schema;  // Schema of the result at this operator
+    int optype;             // Whether it is OpType.SELECT/ Optype.PROJECT/OpType.JOIN
+    Schema schema;          // Schema of the result at this operator
+    boolean isDistinct;     // Whether the query is distinct, false by default
 
     public Operator(int type) {
         this.optype = type;
@@ -29,6 +30,14 @@ public class Operator {
 
     public void setOpType(int type) {
         this.optype = type;
+    }
+
+    public boolean isDistinct(){
+        return isDistinct;
+    }
+
+    public void setIsDistinct(boolean flag){
+        this.isDistinct = flag;
     }
 
     public boolean open() {
