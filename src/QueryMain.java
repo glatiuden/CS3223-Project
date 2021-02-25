@@ -1,3 +1,4 @@
+
 /**
  * This is main driver program of the query processor
  **/
@@ -14,6 +15,8 @@ import qp.utils.*;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
 public class QueryMain {
 
@@ -135,12 +138,26 @@ public class QueryMain {
      **/
     private static void printFinalPlan(Operator root, String[] args, BufferedReader in) {
         System.out.println("----------------------Execution Plan----------------");
+        if(root.isOrderByQuery()) {
+            System.out.print("Orderby(");
+        }
         if(root.isDistinct()){
             System.out.print("Distinct(");
         }
         Debug.PPrint(root);
         if(root.isDistinct()){
             System.out.print(")");
+        }
+
+        if(root.isOrderByQuery()) {
+            System.out.print(", <");
+            
+            for (int k = 0; k < root.getOrderByList().size(); k++) {
+                System.out.print(root.getOrderByList().get(k));
+                if (k + 1 != root.getOrderByList().size())
+                    System.out.print(", ");
+            }
+            System.out.print(">)");
         }
         PlanCost pc = new PlanCost();
         System.out.printf("\nExpected cost: %d\n", pc.getCost(root));
@@ -180,6 +197,20 @@ public class QueryMain {
         numAtts = schema.getNumCols();
         printSchema(schema);
 
+
+        ArrayList<Integer> indexList = new ArrayList<>();
+        ArrayList<Attribute> orderbyList = root.getOrderByList();
+
+        /** Get list of indexes that points to the attributes to be sorted by**/
+        if (orderbyList.size() > 0) {
+            for (Attribute a : orderbyList) {
+                for (int i = 0; i < schema.getAttList().size(); i++) {
+                    if(a.toString().equals(schema.getAttList().get(i).toString()))
+                        indexList.add(i); 
+                }
+            }
+        }
+
         /** Print each tuple in the result **/
         Batch resultbatch;
         ArrayList<Tuple> printedTuples = new ArrayList<>();
@@ -191,7 +222,6 @@ public class QueryMain {
                 if (root.isDistinct()) {
                     if(printedTuples.isEmpty()){
                         printedTuples.add(resultTuple);
-                        printTuple(resultTuple);
                     }else{
                         boolean isSame = false;
                         for(Tuple printedTuple: printedTuples){
@@ -202,13 +232,61 @@ public class QueryMain {
                         }
                         if(!isSame){
                             printedTuples.add(resultTuple);
-                            printTuple(resultTuple);
                         }
                     }
                 }else{
-                    printTuple(resultTuple);
+                    printedTuples.add(resultTuple);
                 }
             }
+        }
+
+        
+        /** Sort the tuples based on the attributes (indexes pointing to attributes) **/
+        if (orderbyList.size() > 0) {
+            Collections.sort(printedTuples, new Comparator<Tuple>() {
+                @Override
+                public int compare(Tuple t1, Tuple t2) {
+                    int compareValue = 0;
+                    for (int i = 0; i < indexList.size(); i++) {
+                        Object o1 = t1.dataAt(indexList.get(i));
+                        Object o2 = t2.dataAt(indexList.get(i));
+                        
+                        if (o1 instanceof Integer) {
+                            compareValue = root.IsDesc() 
+                                            ? ((Integer) o2) - ((Integer) o1) 
+                                            : ((Integer) o1) - ((Integer) o2);
+                        } else if (o1 instanceof String) {
+                            compareValue = root.IsDesc() 
+                                            ? ((String) o2).compareTo((String) o1) 
+                                            : ((String) o1).compareTo((String) o2);
+                        } else if (o1 instanceof Float) {
+                            compareValue = root.IsDesc() 
+                                            ? ((Float) o2).compareTo((Float) o1)
+                                            : ((Float) o1).compareTo((Float) o2);
+                        } else {
+                            System.out.println("Tuple: Unknown comparision of the tuples");
+                            System.exit(1);
+                            return 0;
+                        }
+                        
+                        // Use a attribute to sort the data
+                        // If value of current attribute for both tuples are the same 
+                        if (compareValue == 0)
+                            continue; 
+                        
+                        break;
+                        
+                    }
+                    
+                    
+                    return compareValue;
+                }
+            });
+        }
+
+        // Print all tuples 
+        for(Tuple t : printedTuples) {
+            printTuple(t);
         }
         root.close();
         out.close();
