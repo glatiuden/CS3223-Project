@@ -22,7 +22,7 @@ public class SQLQuery {
     ArrayList<Attribute> orderbyList;    // List of attibutes in orderby clause
 
     boolean isDistinct = false;          // Whether distinct key word appeared in select clause
-
+    boolean isDesc = false;             // whether
     public SQLQuery(ArrayList<Attribute> list1, ArrayList<String> list2, ArrayList<Condition> list3) {
         projectList = list1;
         fromList = list2;
@@ -112,5 +112,13 @@ public class SQLQuery {
         if (joinList == null)
             return 0;
         return joinList.size();
+    }
+
+    public boolean isDesc() {
+        return isDesc;
+    }
+
+    public void setIsDesc(boolean value) {
+        isDesc = value;
     }
 }
