@@ -66,6 +66,10 @@ public class Batch implements Serializable {
         tuples.remove(i);
     }
 
+    public Tuple removeFirst() {
+        return tuples.remove(0);
+    }
+
     public void set(Tuple t, int i) {
         tuples.set(i, t);
     }
