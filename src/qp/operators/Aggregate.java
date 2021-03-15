@@ -1,6 +1,5 @@
 package qp.operators;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,21 +12,19 @@ import qp.utils.Schema;
 import qp.utils.Tuple;
 
 /**
- * Supports Aggregation by inheriting from Project class
- */
+ * Subclass of Projection to support Aggregation Query
+ **/
 public class Aggregate extends Project {
+
     ArrayDeque<Tuple> outputTuples;
     Map<Integer, AggregateAttribute> aggregations;
 
-    /**
-     * Indicator used to differentiate a pure aggregation query
-     **/
-    boolean isAllAggregate;
-    /**
-     * Indicator used to determine whether
-     **/
-    boolean isExecuted;
+    boolean isAllAggregate;     //Indicator used to differentiate if it is a pure aggregation query
+    boolean isExecuted;         //Indicator to terminates the query early to avoid writing out duplicate tuples
 
+    /**
+     * Default constructor for Aggregate, which requires the same arguments as Project
+     */
     public Aggregate(Operator base, ArrayList<Attribute> as, int type) {
         super(base, as, type);
         this.aggregations = new HashMap<>();
@@ -37,18 +34,17 @@ public class Aggregate extends Project {
     }
 
     /**
-     * Open file prepare a stream pointer to read input file
-     */
+     * Opens the connection to the base operator
+     * Also figures out what are the columns that has aggregation operation
+     **/
     public boolean open() {
-        /** set number of tuples per batch **/
+        /* set number of tuples per batch */
         int tuplesize = schema.getTupleSize();
         batchsize = Batch.getPageSize() / tuplesize;
         if (!base.open())
             return false;
 
-        /** The following loop finds the index of the columns that
-         ** are required from the base operator
-         **/
+        /* The following loop finds the index of the columns that are required from the base operator */
         Schema baseSchema = base.getSchema();
         attrIndex = new int[attrset.size()];
 
@@ -65,7 +61,7 @@ public class Aggregate extends Project {
                 }
                 aggregations.put(index, new AggregateAttribute(index, attr.getAggType(), attr.getProjectedType()));
             } else {
-                /** Is not Pure Aggregate Query **/
+                /* Is not Pure Aggregate Query */
                 isAllAggregate = false;
             }
         }
@@ -104,7 +100,7 @@ public class Aggregate extends Project {
                 if (attr.getAggType() == Attribute.NONE) {
                     present.add(tuple.dataAt(index));
                 } else {
-                    present.add(aggregations.get(index).getAggregatedVal());
+                    present.add(aggregations.get(index).getAggVal());
                 }
             }
 
