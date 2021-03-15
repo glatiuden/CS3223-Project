@@ -181,6 +181,7 @@ public class RandomInitialPlan {
         Operator base = root;
         if (projectlist == null)
             projectlist = new ArrayList<>();
+
         if (!projectlist.isEmpty()) {
             boolean hasAggregate = projectlist.stream().anyMatch(attr -> attr.getAggType() != Attribute.NONE);
             if (hasAggregate) {
