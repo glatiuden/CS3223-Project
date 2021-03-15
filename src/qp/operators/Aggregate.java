@@ -1,28 +1,31 @@
 package qp.operators;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
-import qp.utils.Attribute;
 import qp.utils.AggregateAttribute;
+import qp.utils.Attribute;
 import qp.utils.Batch;
-import qp.utils.Tuple;
 import qp.utils.Schema;
+import qp.utils.Tuple;
 
 /**
  * Supports Aggregation by inheriting from Project class
  */
 public class Aggregate extends Project {
     ArrayDeque<Tuple> outputTuples;
-    HashMap<Integer, AggregateAttribute> aggregations;
-    Batch inbatch;
-    Batch outbatch;
-    int[] attrIndex;
+    Map<Integer, AggregateAttribute> aggregations;
 
-    /** Indicator used to differentiate a pure aggregation query **/
+    /**
+     * Indicator used to differentiate a pure aggregation query
+     **/
     boolean isAllAggregate;
-    /** Indicator used to determine whether  **/
+    /**
+     * Indicator used to determine whether
+     **/
     boolean isExecuted;
 
     public Aggregate(Operator base, ArrayList<Attribute> as, int type) {
@@ -55,6 +58,11 @@ public class Aggregate extends Project {
             attr.setType(baseSchema.getAttribute(index).getType());
             attrIndex[i] = index;
             if (attr.getAggType() != Attribute.NONE) {
+                int attrProjectType = attr.getProjectedType();
+                if (attrProjectType == Attribute.INVALID) {
+                    System.out.println("Data type STRING is invalid for AVG/SUM operator.");
+                    return false;
+                }
                 aggregations.put(index, new AggregateAttribute(index, attr.getAggType(), attr.getProjectedType()));
             } else {
                 /** Is not Pure Aggregate Query **/
@@ -69,7 +77,7 @@ public class Aggregate extends Project {
             while ((inbatch = base.next()) != null) {
                 while (!inbatch.isEmpty()) {
                     Tuple tuple = inbatch.removeFirst();
-                    for (AggregateAttribute aggAttr: aggregations.values()) {
+                    for (AggregateAttribute aggAttr : aggregations.values()) {
                         aggAttr.setAggVal(tuple);
                     }
                     outputTuples.add(tuple);
