@@ -14,7 +14,7 @@ public class Operator {
     int optype;             // Whether it is OpType.SELECT/ Optype.PROJECT/OpType.JOIN
     Schema schema;          // Schema of the result at this operator
     boolean isDistinct;     // Whether the query is distinct, false by default
-    ArrayList<Attribute> orderbyList; // List of attributes to be sorted by
+    ArrayList<Attribute> orderbyList = new ArrayList<Attribute>(); // List of attributes to be sorted by
     boolean isDesc;         // Whether to be sort by descending, false by default
 
     public Operator(int type) {

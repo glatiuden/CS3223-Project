@@ -74,6 +74,10 @@ public class Batch implements Serializable {
         return tuples.size();
     }
 
+    public ArrayList<Tuple> getTuples() {
+        return tuples;
+    }
+
     public boolean isFull() {
         if (size() == capacity())
             return true;
