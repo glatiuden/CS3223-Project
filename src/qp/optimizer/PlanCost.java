@@ -17,6 +17,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.StringTokenizer;
 
+import static java.lang.Math.ceil;
+import static java.lang.Math.log;
+
 public class PlanCost {
 
     long cost;
@@ -142,6 +145,11 @@ public class PlanCost {
         switch (joinType) {
             case JoinType.NESTEDJOIN:
                 joincost = leftpages * rightpages;
+                break;
+            case JoinType.SORTMERGE:
+                long leftSortCost = 2 * leftpages * (1 + (long) Math.ceil(Math.log((long) Math.ceil(leftpages/numbuff))/Math.log(numbuff - 1)));
+                long rightSortCost = 2 * rightpages * (1 + (long) Math.ceil(Math.log((long) Math.ceil(rightpages/numbuff))/Math.log(numbuff - 1)));
+                joincost = leftSortCost + rightSortCost + leftpages + rightpages;
                 break;
             default:
                 System.out.println("join type is not supported");

@@ -204,7 +204,7 @@ public class ExternalSort extends Operator {
         } catch (ClassNotFoundException ex) {
             throw new IOException("Unable to serialize the object.");
         } catch (IOException ex) {
-            throw new IOException("Exception encountered: " + ex.getMessage());
+            return null;
         }
     }
 
