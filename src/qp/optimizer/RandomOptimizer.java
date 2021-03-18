@@ -226,6 +226,7 @@ public class RandomOptimizer {
             System.out.print("OrderBy(");
         }
         if(this.sqlquery.isDistinct()){
+            finalPlan.setIsDistinct(true);
             System.out.print("Distinct(");
         }
         Debug.PPrint(finalPlan);
