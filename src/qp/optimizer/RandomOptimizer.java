@@ -48,6 +48,7 @@ public class RandomOptimizer {
             Operator right = makeExecPlan(((Join) node).getRight());
             int joinType = ((Join) node).getJoinType();
             int numbuff = BufferManager.getBuffersPerJoin();
+
             switch (joinType) {
                 case JoinType.NESTEDJOIN:
                     NestedJoin nj = new NestedJoin((Join) node);
@@ -55,6 +56,18 @@ public class RandomOptimizer {
                     nj.setRight(right);
                     nj.setNumBuff(numbuff);
                     return nj;
+                case JoinType.BLOCKNESTED:
+                    BlockNestedJoin bj = new BlockNestedJoin((Join) node);
+                    bj.setLeft(left);
+                    bj.setRight(right);
+                    bj.setNumBuff(numbuff);
+                    return bj;
+                case JoinType.SORTMERGE:
+                    SortMergeJoin sm = new SortMergeJoin((Join) node);
+                    sm.setLeft(left);
+                    sm.setRight(right);
+                    sm.setNumBuff(numbuff);
+                    return sm;
                 default:
                     return node;
             }
@@ -116,10 +129,17 @@ public class RandomOptimizer {
          *  the maximum specified number of random restarts (NUMITER)
          *  has satisfied
          **/
+        ArrayList<Attribute> orderByList = this.sqlquery.getOrderByList();
         for (int j = 0; j < NUMITER; ++j) {
             Operator initPlan = rip.prepareInitialPlan();
             modifySchema(initPlan);
             System.out.println("-----------initial Plan-------------");
+            //ArrayList<Attribute> orderByList = this.sqlquery.getOrderByList();
+            if(orderByList.size() > 0) {
+                initPlan.setOrderByList(orderByList);
+                initPlan.setIsDesc(this.sqlquery.isDesc());
+                System.out.print("OrderBy(");
+            }
             if(this.sqlquery.isDistinct()){
                 initPlan.setIsDistinct(true);
                 System.out.print("Distinct(");
@@ -127,6 +147,17 @@ public class RandomOptimizer {
             Debug.PPrint(initPlan);
             if(this.sqlquery.isDistinct()){
                 System.out.print(")");
+            }
+
+            if(orderByList.size() > 0) {
+                System.out.print(", <");
+                
+                for (int k = 0; k < orderByList.size(); k++) {
+                    System.out.print(orderByList.get(k));
+                    if (k + 1 != orderByList.size())
+                        System.out.print(", ");
+                }
+                System.out.print(">) ");
             }
             PlanCost pc = new PlanCost();
             long initCost = pc.getCost(initPlan);
@@ -191,12 +222,27 @@ public class RandomOptimizer {
         }
         System.out.println("\n\n\n");
         System.out.println("---------------------------Final Plan----------------");
+        if(orderByList.size() > 0) {
+            System.out.print("OrderBy(");
+        }
         if(this.sqlquery.isDistinct()){
+            finalPlan.setIsDistinct(true);
             System.out.print("Distinct(");
         }
         Debug.PPrint(finalPlan);
         if(this.sqlquery.isDistinct()){
             System.out.print(")");
+        }
+
+        if(orderByList.size() > 0) {
+            System.out.print(", <");
+            
+            for (int k = 0; k < orderByList.size(); k++) {
+                System.out.print(orderByList.get(k));
+                if (k + 1 != orderByList.size())
+                    System.out.print(", ");
+            }
+            System.out.print(">)");
         }
         System.out.println("  " + MINCOST);
         return finalPlan;

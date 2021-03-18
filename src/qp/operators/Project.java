@@ -108,6 +108,32 @@ public class Project extends Operator {
     }
 
     /**
+     * Read the next block of tuples from operator
+     */
+    public Batch getBlock(int sizeofblock) {
+        outbatch = new Batch(sizeofblock);
+        /** all the tuples in the inbuffer goes to the output buffer **/
+        inbatch = base.next();
+
+        if (inbatch == null) {
+            return null;
+        }
+
+        for (int i = 0; i < inbatch.size(); i++) {
+            Tuple basetuple = inbatch.get(i);
+            //Debug.PPrint(basetuple);
+            //System.out.println();
+            ArrayList<Object> present = new ArrayList<>();
+            for (int j = 0; j < attrset.size(); j++) {
+                Object data = basetuple.dataAt(attrIndex[j]);
+                present.add(data);
+            }
+            Tuple outtuple = new Tuple(present);
+            outbatch.add(outtuple);
+        }
+        return outbatch;
+    }
+    /**
      * Close the operator
      */
     public boolean close() {
