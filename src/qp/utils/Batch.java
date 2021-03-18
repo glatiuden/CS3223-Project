@@ -23,6 +23,10 @@ public class Batch implements Serializable {
         return PageSize;
     }
 
+    public ArrayList<Tuple> getTuples() {
+        return tuples;
+    }
+
     /** Number of tuples per page **/
     public Batch(int numtuple) {
         MAX_SIZE = numtuple;
@@ -62,8 +66,12 @@ public class Batch implements Serializable {
         return tuples.isEmpty();
     }
 
-    public void remove(int i) {
-        tuples.remove(i);
+    public Tuple remove(int i) {
+        return tuples.remove(i);
+    }
+
+    public Tuple removeFirst() {
+        return tuples.remove(0);
     }
 
     public void set(Tuple t, int i) {

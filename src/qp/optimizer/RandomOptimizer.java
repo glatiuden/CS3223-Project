@@ -48,6 +48,7 @@ public class RandomOptimizer {
             Operator right = makeExecPlan(((Join) node).getRight());
             int joinType = ((Join) node).getJoinType();
             int numbuff = BufferManager.getBuffersPerJoin();
+
             switch (joinType) {
                 case JoinType.NESTEDJOIN:
                     NestedJoin nj = new NestedJoin((Join) node);
@@ -61,6 +62,12 @@ public class RandomOptimizer {
                     bj.setRight(right);
                     bj.setNumBuff(numbuff);
                     return bj;
+                case JoinType.SORTMERGE:
+                    SortMergeJoin sm = new SortMergeJoin((Join) node);
+                    sm.setLeft(left);
+                    sm.setRight(right);
+                    sm.setNumBuff(numbuff);
+                    return sm;
                 default:
                     return node;
             }
