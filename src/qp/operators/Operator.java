@@ -5,12 +5,17 @@ package qp.operators;
 
 import qp.utils.Batch;
 import qp.utils.Schema;
+import qp.utils.Attribute;
+
+import java.util.ArrayList;
 
 public class Operator {
 
     int optype;             // Whether it is OpType.SELECT/ Optype.PROJECT/OpType.JOIN
     Schema schema;          // Schema of the result at this operator
     boolean isDistinct;     // Whether the query is distinct, false by default
+    ArrayList<Attribute> orderbyList = new ArrayList<Attribute>(); // List of attributes to be sorted by
+    boolean isDesc;         // Whether to be sort by descending, false by default
 
     public Operator(int type) {
         this.optype = type;
@@ -40,6 +45,26 @@ public class Operator {
         this.isDistinct = flag;
     }
 
+    public boolean isOrderByQuery() {
+        return orderbyList.size() > 0;
+    }
+
+    public ArrayList<Attribute> getOrderByList() {
+        return orderbyList;
+    }
+    
+    public void setOrderByList(ArrayList<Attribute> alist) {
+        orderbyList = alist;
+    }
+
+    public void setIsDesc(boolean value) {
+        isDesc = value;
+    }
+
+    public boolean IsDesc() {
+        return isDesc;
+    }
+
     public boolean open() {
         System.err.println("Abstract interface cannot be used.");
         System.exit(1);
@@ -47,6 +72,12 @@ public class Operator {
     }
 
     public Batch next() {
+        System.err.println("Abstract interface cannot be used.");
+        System.exit(1);
+        return null;
+    }
+
+    public Batch getBlock(int sizeofblock) {
         System.err.println("Abstract interface cannot be used.");
         System.exit(1);
         return null;
