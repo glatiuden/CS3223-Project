@@ -54,7 +54,7 @@ In addition to the given SPJ (Select-Project-Join) query engine, our team implem
         [size of tuple]  
         [attribute name] [data type] [range] [key type] [column size]
 
-- Once you had the database records in text format in <table name>.txt file, then convert the records into object format. Use
+- Once you had the database records in text format in [tablename].txt file, then convert the records into object format. Use
     - java ConvertTxtToTbl <table name>
     - Example
     
