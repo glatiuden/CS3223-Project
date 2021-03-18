@@ -62,6 +62,70 @@ public class SortMergeJoin extends Join {
         return true;
     }
 
+    public Batch getBlock(int sizeofblock) {
+        outbatch = new Batch(sizeofblock);
+        while (leftbatch != null && rightbatch != null) {
+            Tuple lefttuple = leftbatch.get(lcurs);
+            Tuple righttuple = getRightTuple();
+
+            if (tempcurs == -1) {
+                while (Tuple.compareTuples(lefttuple, righttuple, leftindex, rightindex) < 0) {
+                    lcurs++;
+                    if (leftbatch != null && lcurs >= leftbatch.size()) {
+                        leftbatch = leftsort.next();
+                        lcurs = 0;
+                    }
+                    if (leftbatch == null) break;
+                    lefttuple = leftbatch.get(lcurs);
+                }
+
+                while (Tuple.compareTuples(lefttuple, righttuple, leftindex, rightindex) > 0) {
+                    rcurs++;
+                    if (rightbatch != null && rcurs >= rightbatch.size() + backup.size()) {
+                        backup.addAll(rightbatch.getTuples());
+                        rightbatch = rightsort.next();
+                    }
+                    if (rightbatch == null) break;
+                    righttuple = getRightTuple();
+                }
+                if (rcurs >= backup.size()) {
+                    rcurs -= backup.size();
+                }
+                tempcurs = rcurs;
+                backup.clear();
+            }
+
+            if (Tuple.compareTuples(lefttuple, righttuple, leftindex, rightindex) == 0) {
+                outbatch.add(lefttuple.joinWith(righttuple));
+                rcurs++;
+                if (rightbatch != null && rcurs >= rightbatch.size() + backup.size()) {
+                    backup.addAll(rightbatch.getTuples());
+                    rightbatch = rightsort.next();
+                }
+                if (rightbatch == null) break;
+                if (outbatch.isFull()) {
+                    return outbatch;
+                }
+            } else {
+                rcurs = tempcurs;
+                lcurs++;
+                if (leftbatch != null && lcurs >= leftbatch.size()) {
+                    leftbatch = leftsort.next();
+                    lcurs = 0;
+                }
+                if (leftbatch == null) break;
+                tempcurs = -1;
+            }
+        }
+
+        if (outbatch.isEmpty()) {
+            close();
+            return null;
+        } else {
+            return outbatch;
+        }
+    }
+
     @Override
     public Batch next() {
         outbatch = new Batch(batchsize);

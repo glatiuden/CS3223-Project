@@ -111,7 +111,7 @@ public class Debug {
 
         } else if (optype == OpType.PROJECT || optype == OpType.AGGREGATE) {
             System.out.print("Project(");
-//            PPrint(((Project) node).getBase());
+            PPrint(((Project) node).getBase());
             PPrint(node.getSchema());
             System.out.print(")");
 
