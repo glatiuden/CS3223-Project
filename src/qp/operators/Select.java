@@ -115,6 +115,57 @@ public class Select extends Operator {
     }
 
     /**
+     * returns a block of tuples that satisfies the
+     * * condition specified on the tuples coming from base operator
+     * * NOTE: This operation is performed on the fly
+     **/
+    public Batch getBlock(int sizeofblock) {
+        int i = 0;
+        if (eos) {
+            close();
+            return null;
+        }
+
+        /** An output buffer is initiated **/
+        outbatch = new Batch(sizeofblock);
+
+        /** keep on checking the incoming pages until
+         ** the output buffer is full
+         **/
+        while (!outbatch.isFull()) {
+            if (start == 0) {
+                inbatch = base.getBlock(sizeofblock);
+                /** There is no more incoming pages from base operator **/
+                if (inbatch == null) {
+                    eos = true;
+                    return outbatch;
+                }
+            }
+
+            /** Continue this for loop until this page is fully observed
+             ** or the output buffer is full
+             **/
+            for (i = start; i < inbatch.size() && (!outbatch.isFull()); ++i) {
+                Tuple present = inbatch.get(i);
+                /** If the condition is satisfied then
+                 ** this tuple is added tot he output buffer
+                 **/
+                if (checkCondition(present))
+                    outbatch.add(present);
+            }
+
+            /** Modify the cursor to the position requierd
+             ** when the base operator is called next time;
+             **/
+            if (i == inbatch.size())
+                start = 0;
+            else
+                start = i;
+        }
+        return outbatch;
+    }
+
+    /**
      * closes the output connection
      * * i.e., no more pages to output
      **/

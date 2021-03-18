@@ -175,9 +175,15 @@ public class RandomInitialPlan {
     public void createProjectOp() {
         Operator base = root;
         if (projectlist == null)
-            projectlist = new ArrayList<Attribute>();
+            projectlist = new ArrayList<>();
+
         if (!projectlist.isEmpty()) {
-            root = new Project(base, projectlist, OpType.PROJECT);
+            boolean hasAggregate = projectlist.stream().anyMatch(attr -> attr.getAggType() != Attribute.NONE);
+            if (hasAggregate) {
+                root = new Aggregate(base, projectlist, OpType.AGGREGATE);
+            } else {
+                root = new Project(base, projectlist, OpType.PROJECT);
+            }
             Schema newSchema = base.getSchema().subSchema(projectlist);
             root.setSchema(newSchema);
         }

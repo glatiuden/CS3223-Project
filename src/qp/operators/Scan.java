@@ -86,6 +86,36 @@ public class Scan extends Operator {
     }
 
     /**
+     * Next operator - get a block of tuples from the file
+     **/
+    public Batch getBlock(int sizeofblock) {
+        /** The file reached its end and no more to read **/
+        if (eos) {
+            close();
+            return null;
+        }
+        Batch tuples = new Batch(sizeofblock);
+        while (!tuples.isFull()) {
+            try {
+                Tuple data = (Tuple) in.readObject();
+                tuples.add(data);
+            } catch (ClassNotFoundException cnf) {
+                System.err.println("Scan:Class not found for reading file  " + filename);
+                System.exit(1);
+            } catch (EOFException EOF) {
+                /** At this point incomplete page is sent and at next call it considered
+                 ** as end of file
+                 **/
+                eos = true;
+                return tuples;
+            } catch (IOException e) {
+                System.err.println("Scan:Error reading " + filename);
+                System.exit(1);
+            }
+        }
+        return tuples;
+    }
+    /**
      * Close the file.. This routine is called when the end of filed
      * * is already reached
      **/

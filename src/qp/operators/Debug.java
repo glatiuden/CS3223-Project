@@ -13,14 +13,13 @@ public class Debug {
      **/
     public static void PPrint(Attribute attr) {
         String[] aggregates = new String[]{"", "MAX", "MIN", "SUM", "COUNT", "AVG"};
-
         int aggregate = attr.getAggType();
         String tabname = attr.getTabName();
         String colname = attr.getColName();
         if (aggregate == 0) {
             System.out.print(tabname + "." + colname);
         } else {
-            System.out.print(aggregates[aggregate] + "(" + tabname + "." + colname + ")  ");
+            System.out.print(aggregates[aggregate] + "(" + tabname + "." + colname + ")");
         }
     }
 
@@ -65,12 +64,12 @@ public class Debug {
      * print schema
      **/
     public static void PPrint(Schema schema) {
-        System.out.println();
+//        System.out.println();
         for (int i = 0; i < schema.getNumCols(); i++) {
             Attribute attr = schema.getAttribute(i);
             PPrint(attr);
         }
-        System.out.println();
+//        System.out.println();
     }
 
 
@@ -110,9 +109,10 @@ public class Debug {
             PPrint(((Select) node).getCondition());
             System.out.print(")");
 
-        } else if (optype == OpType.PROJECT) {
+        } else if (optype == OpType.PROJECT || optype == OpType.AGGREGATE) {
             System.out.print("Project(");
-            PPrint(((Project) node).getBase());
+//            PPrint(((Project) node).getBase());
+            PPrint(node.getSchema());
             System.out.print(")");
 
         } else if (optype == OpType.SCAN) {
@@ -150,16 +150,3 @@ public class Debug {
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

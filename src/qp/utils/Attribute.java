@@ -15,6 +15,7 @@ public class Attribute implements Serializable {
     public static final int PK = 1;  // Primary key
     public static final int FK = 2;  // Foreign key
 
+    public static final int INVALID = -1;
     public static final int NONE = 0;
     public static final int MAX = 1;
     public static final int MIN = 2;
@@ -111,6 +112,12 @@ public class Attribute implements Serializable {
     }
 
     public int getProjectedType() {
+        /* Validation check */
+        if (type == Attribute.STRING) {
+            if (aggtype == Attribute.SUM || aggtype == Attribute.AVG)
+            return INVALID;
+        }
+
         if (aggtype == Attribute.COUNT) {
             return Attribute.INT;
         } else if (aggtype == Attribute.AVG) {
@@ -176,5 +183,4 @@ public class Attribute implements Serializable {
         newattr.setAttrSize(attrsize);
         return newattr;
     }
-
 }

@@ -13,6 +13,7 @@ public class BlockNestedJoin extends Join {
 
     static int filenum = 0;         // To get unique filenum for this operation
     int batchsize;                  // Number of tuples per out batch
+    int blocksize;                  // Number of tuples in a block
     ArrayList<Integer> leftindex;   // Indices of the join attributes in left table
     ArrayList<Integer> rightindex;  // Indices of the join attributes in right table
     String rfname;                  // The file name where the right table is materialized
@@ -39,10 +40,23 @@ public class BlockNestedJoin extends Join {
      * * Opens the connections
      **/
     public boolean open() {
+
+        int pageSize = Batch.getPageSize();
         /** select number of tuples per batch **/
         int tuplesize = schema.getTupleSize();
-        batchsize = Batch.getPageSize() / tuplesize;
 
+        assert tuplesize > 0 : "The size of a tuple should be at least 1 byte!";
+
+        batchsize = pageSize / tuplesize;
+        
+        blocksize = (numBuff - 2) * batchsize;
+
+        /** Throw error if a tuple cannot be fit into a page */
+        if (pageSize < tuplesize) {
+            System.err.println("Page size is smaller than the size of a tuple!");
+            return false;
+        }
+        
         /** find indices attributes of join conditions **/
         leftindex = new ArrayList<>();
         rightindex = new ArrayList<>();
@@ -104,28 +118,13 @@ public class BlockNestedJoin extends Join {
             return null;
         }
         outbatch = new Batch(batchsize);
-        ArrayList<Tuple> leftBlock = new ArrayList<>();
         while (!outbatch.isFull()) {
             if (lcurs == 0 && eosr == true) {
-                /** new left page is to be fetched**/
-                /*
-                leftbatch = (Batch) left.next();
+                /** Fetch a block of tuples from left relation */
+                leftbatch = (Batch) left.getBlock(blocksize);
                 if (leftbatch == null) {
                     eosl = true;
                     return outbatch;
-                }
-                */
-                /** Fetch a block of tuples from left relation */
-                int numofBuffers = this.getNumBuff() - 2;
-                for (int count = 0; count < numofBuffers; count++) {
-                    Batch leftbatch = left.next();
-                    if (leftbatch == null) {
-                        eosl = true;
-                        if (count == 0)
-                            return outbatch;
-                        break;
-                    }
-                    leftBlock.addAll(leftbatch.getTuples());  
                 }
                 
                 /** Whenever a new left page came, we have to start the
@@ -145,21 +144,21 @@ public class BlockNestedJoin extends Join {
                     if (rcurs == 0 && lcurs == 0) {
                         rightbatch = (Batch) in.readObject();
                     }
-                    for (i = lcurs; i < leftBlock.size(); ++i) {
+                    for (i = lcurs; i < leftbatch.size(); ++i) {
                         for (j = rcurs; j < rightbatch.size(); ++j) {
-                            Tuple lefttuple = leftBlock.get(i);
+                            Tuple lefttuple = leftbatch.get(i);
                             Tuple righttuple = rightbatch.get(j);
                             if (lefttuple.checkJoin(righttuple, leftindex, rightindex)) {
                                 Tuple outtuple = lefttuple.joinWith(righttuple);
                                 outbatch.add(outtuple);
                                 if (outbatch.isFull()) {
-                                    if (i == leftBlock.size() - 1 && j == rightbatch.size() - 1) {  //case 1
+                                    if (i == leftbatch.size() - 1 && j == rightbatch.size() - 1) {  //case 1
                                         lcurs = 0;
                                         rcurs = 0;
-                                    } else if (i != leftBlock.size() - 1 && j == rightbatch.size() - 1) {  //case 2
+                                    } else if (i != leftbatch.size() - 1 && j == rightbatch.size() - 1) {  //case 2
                                         lcurs = i + 1;
                                         rcurs = 0;
-                                    } else if (i == leftBlock.size() - 1 && j != rightbatch.size() - 1) {  //case 3
+                                    } else if (i == leftbatch.size() - 1 && j != rightbatch.size() - 1) {  //case 3
                                         lcurs = i;
                                         rcurs = j + 1;
                                     } else {
