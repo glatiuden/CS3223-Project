@@ -50,6 +50,15 @@ public class Batch implements Serializable {
         return tuples.contains(t);
     }
 
+    public boolean isContains(Tuple t) {
+        for (Tuple tuple: tuples) {
+            if (tuple.isEquals(t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public Tuple get(int i) {
         return tuples.get(i);
     }

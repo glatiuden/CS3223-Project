@@ -1,36 +1,45 @@
 package qp.operators;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 
 import qp.utils.AggregateAttribute;
 import qp.utils.Attribute;
 import qp.utils.Batch;
-import qp.utils.Schema;
 import qp.utils.Tuple;
 
 /**
  * Subclass of Projection to support Aggregation Query
  **/
-public class Aggregate extends Project {
-
-    ArrayDeque<Tuple> outputTuples;
-    Map<Integer, AggregateAttribute> aggregations;
-
-    boolean isAllAggregate;     //Indicator used to differentiate if it is a pure aggregation query
-    boolean isExecuted;         //Indicator to terminates the query early to avoid writing out duplicate tuples
+public class Aggregate extends Operator {
+    Operator base;                 // Base table to project
+    ArrayList<Attribute> attrset;  // Set of attributes to project
+    Batch inbatch;
+    Batch outbatch;
+    int[] attrIndex;
+    int tuplesize;
+    List<AggregateAttribute> aggrAttrList;
+    Batch outputbatch;
 
     /**
      * Default constructor for Aggregate, which requires the same arguments as Project
      */
-    public Aggregate(Operator base, ArrayList<Attribute> as, int type) {
-        super(base, as, type);
-        this.aggregations = new HashMap<>();
-        this.outputTuples = new ArrayDeque<>();
-        this.isAllAggregate = true;
-        this.isExecuted = false;
+    public Aggregate(Operator base, ArrayList<Attribute> as, int tuplesize, int[] attrIndex, List<AggregateAttribute> aggrAttrList) {
+        super(OpType.AGGREGATE);
+        this.base = base;
+        this.attrset = as;
+        this.tuplesize = tuplesize;
+        this.attrIndex = attrIndex;
+        this.aggrAttrList = aggrAttrList;
+    }
+
+    public Operator getBase() {
+        return base;
+    }
+
+    public void setBase(Operator base) {
+        this.base = base;
     }
 
     /**
@@ -38,79 +47,68 @@ public class Aggregate extends Project {
      * Also figures out what are the columns that has aggregation operation
      **/
     public boolean open() {
-        /* set number of tuples per batch */
-        int tuplesize = schema.getTupleSize();
-        batchsize = Batch.getPageSize() / tuplesize;
-        if (!base.open())
-            return false;
-
-        /* The following loop finds the index of the columns that are required from the base operator */
-        Schema baseSchema = base.getSchema();
-        attrIndex = new int[attrset.size()];
-
-        for (int i = 0; i < attrset.size(); ++i) {
-            Attribute attr = attrset.get(i);
-            int index = baseSchema.indexOf(attr.getBaseAttribute());
-            attr.setType(baseSchema.getAttribute(index).getType());
-            attrIndex[i] = index;
-            if (attr.getAggType() != Attribute.NONE) {
-                int attrProjectType = attr.getProjectedType();
-                if (attrProjectType == Attribute.INVALID) {
-                    System.out.println("Data type STRING is invalid for AVG/SUM operator.");
-                    return false;
+        outputbatch = new Batch(Batch.getPageSize() / tuplesize);
+        while ((inbatch = base.next()) != null) {
+            while (!inbatch.isEmpty()) {
+                Tuple tuple = inbatch.removeFirst();
+                for (AggregateAttribute agg : aggrAttrList) {
+                    agg.setAggVal(tuple);
                 }
-                aggregations.put(index, new AggregateAttribute(index, attr.getAggType(), attr.getProjectedType()));
-            } else {
-                /* Is not Pure Aggregate Query */
-                isAllAggregate = false;
+                outputbatch.add(tuple);
             }
         }
         return true;
     }
 
     public Batch next() {
-        if (!isExecuted) {
-            while ((inbatch = base.next()) != null) {
-                while (!inbatch.isEmpty()) {
-                    Tuple tuple = inbatch.removeFirst();
-                    for (AggregateAttribute aggAttr : aggregations.values()) {
-                        aggAttr.setAggVal(tuple);
-                    }
-                    outputTuples.add(tuple);
-                }
-            }
-            return processAgg();
-        }
-        return null;
-    }
-
-    private Batch processAgg() {
-        if (outputTuples.isEmpty()) {
+        outbatch = new Batch(Batch.getPageSize() / tuplesize);
+        if (outputbatch.isEmpty()) {
             base.close();
             return null;
         }
 
-        outbatch = new Batch(batchsize);
-        while (!outbatch.isFull() && !outputTuples.isEmpty()) {
-            Tuple tuple = outputTuples.removeFirst();
-            ArrayList<Object> present = new ArrayList<>();
-            for (int i = 0; i < attrset.size(); i++) {
-                Attribute attr = attrset.get(i);
-                int index = attrIndex[i];
-                if (attr.getAggType() == Attribute.NONE) {
-                    present.add(tuple.dataAt(index));
-                } else {
-                    present.add(aggregations.get(index).getAggVal());
+        while (!outbatch.isFull() && !outputbatch.isEmpty()) {
+            Tuple tuple = outputbatch.removeFirst();
+            ArrayList<Object> present = new ArrayList<>(tuple.data());
+            boolean output = true;
+            for (int j = 0; j < attrset.size(); j++) {
+                Attribute attr = attrset.get(j);
+                if (attr.getAggType() != Attribute.NONE) {
+                    int aggType = attr.getAggType();
+                    int index = attrIndex[j];
+
+                    Optional<AggregateAttribute> aggAttr = aggrAttrList.stream()
+                            .filter(x -> x.aggType == aggType && x.attrIndex == index)
+                            .findFirst();
+
+                    if (aggAttr.isPresent()) {
+                        Object data = aggAttr.get().getAggVal();
+                        if (attrset.indexOf(attr) == attrset.size() - 1) {
+                            if (aggType == Attribute.MAX || aggType == Attribute.MIN) {
+                                //If only performing MAX or MIN, we can check if this tuple contains the desired tuples
+                                if (!present.contains(data)) {
+                                    output = false;
+                                }
+                            }
+                        }
+                        present.add(data);
+                    }
                 }
             }
 
-            Tuple outtuple = new Tuple(present);
-            outbatch.add(outtuple);
-            if (isAllAggregate) {
-                isExecuted = base.close();
-                break;
+            if (output) {
+                Tuple outtuple = new Tuple(present);
+                if (!outbatch.isContains(outtuple)) { //Only unique tuples
+                    outbatch.add(outtuple);
+                }
             }
         }
         return outbatch;
+    }
+
+    public boolean close() {
+        inbatch = null;
+        base.close();
+        return true;
     }
 }
