@@ -191,6 +191,11 @@ public class BlockNestedJoin extends Join {
         return outbatch;
     }
 
+    @Override
+    public Batch getBlock(int sizeofblock) {
+    	return next();
+    }
+
     /**
      * Close the operator
      */
