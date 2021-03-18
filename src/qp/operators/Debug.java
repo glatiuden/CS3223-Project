@@ -86,15 +86,15 @@ public class Debug {
                 case JoinType.NESTEDJOIN:
                     System.out.print("NestedJoin(");
                     break;
-//                case JoinType.BLOCKNESTED:
-//                    System.out.print("BlockNested(");
-//                    break;
+                case JoinType.BLOCKNESTED:
+                    System.out.print("BlockNested(");
+                    break;
                 case JoinType.SORTMERGE:
                     System.out.print("SortMerge(");
                     break;
-//                case JoinType.HASHJOIN:
-//                    System.out.print("HashJoin(");
-//                    break;
+                case JoinType.HASHJOIN:
+                    System.out.print("HashJoin(");
+                    break;
             }
             PPrint(((Join) node).getLeft());
             System.out.print("  [");
