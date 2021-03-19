@@ -39,6 +39,7 @@ Stores the output tuples into an ArrayList and make use of a Java Comparator to 
 
 View The Code: Refer to Line 244 in [QueryMain.java](https://github.com/Sharptail/KAJ-Query-Engine/blob/master/src/QueryMain.java)
 https://github.com/Sharptail/KAJ-Query-Engine/blob/master/src/QueryMain.java
+
 6.  Identified and fixed the following **bugs/limitations** in the SPJ engine given:
     1. Incorrect Data Type in RandomDB.java
     2. Incorrect Nested Join cost computation in PlanCost.java
