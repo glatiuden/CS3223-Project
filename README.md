@@ -16,10 +16,33 @@ Our project report can be found [here](https://docs.google.com/document/d/1K5gtK
 ## Implementation summary
 In addition to the given SPJ (Select-Project-Join) query engine, our team implemented the following functions:
 1.	**Block Nested Loops join**
+
+    The implementation of the Block Nested Loops Join includes the Iterator Model with the following APIs:
+    + open() - Initialize the necessary data structures to access the tuples
+    + next() - Get the next tuple
+    + close() -  End the process of retrieving tuples
+
+    The difference between the Block Nested Loops Join and a normal Page Nested Loops Join is that for every API call to next(), the Page Nested Loops Join reads in a page from the outer relation to scan the inner relation while the newly implemented Block Nested Loops Join reads in a block of pages (The number of available buffers for reading the outer relation). 
+
+    Implemented a method getBlock(int sizeofblock) to retrieve a block of tuples by providing the size of a block.
+
+    The Block Nested Loops Join is computationally faster as it fully utilizes the memory buffers to read in more pages of the table.
+
+    View The Code: [BlockNestedJava.java](https://github.com/Sharptail/KAJ-Query-Engine/blob/master/src/qp/operators/BlockNestedJoin.java)
+
 2.  **SortMerge join** based on ExternalSortMerge and SortedRunComparator 
 3.  **Distinct** based on ExternalSortMerge and SortedRunComparator 
 4.  **Aggregate** functions (MIN, MAX, COUNT, AVG) 
-5.  Identified and fixed the following **bugs/limitations** in the SPJ engine given:
+5.  **OrderBy** (Supports DESC only)
+
+    Implementation of OrderBy to support the sorting of output tuples. Users can call ORDERBY to sort in ascending order or ORDERBY DESC in descending order.
+
+    Stores the output tuples into an ArrayList and make use of a Java Comparator to sort the ArrayList.
+
+    View The Code: Refer to Line 244 in     [QueryMain.java](https://github.com/Sharptail/KAJ-Query-Engine/blob/master/src/QueryMain.java)
+
+
+6.  Identified and fixed the following **bugs/limitations** in the SPJ engine given:
     1. Incorrect Data Type in RandomDB.java
     2. Incorrect Nested Join cost computation in PlanCost.java
     3. Allowing AVG and SUM operation on String in Attribute.java
