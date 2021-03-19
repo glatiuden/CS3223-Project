@@ -268,6 +268,8 @@ public class NestedJoin extends Join {
     public boolean close() {
         File f = new File(rfname);
         f.delete();
+        left.close();
+        right.close();
         return true;
     }
 

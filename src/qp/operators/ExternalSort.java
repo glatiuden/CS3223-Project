@@ -18,15 +18,18 @@ import qp.utils.Block;
 import qp.utils.Tuple;
 
 public class ExternalSort extends Operator {
-    int batchsize, noOfBuffer, noOfAvailBuffer;
-    String direction;
-    Batch inbatch, outbatch;
-    ArrayList<Integer> attrIndex;
-    Comparator<Tuple> comparator;
-    List<File> sortedFiles;
-    ObjectInputStream inputStream;
-    ObjectOutputStream outputStream;
-    Operator base;
+    int batchsize;                  // Number of tuples per out batch
+    int noOfBuffer;                 // Number of buffers (B)
+    int noOfAvailBuffer;            // Number of buffers available for sorting (B-1)
+    String direction;               // An identifier for temp file direction
+    Batch inbatch;                  // Buffer page for input
+    Batch outbatch;                 // Buffer page for output
+    ArrayList<Integer> attrIndex;   // Set of attributes index to sort
+    Comparator<Tuple> comparator;   // Tuple comparator
+    List<File> sortedFiles;         // List of files (runs) to sort
+    ObjectInputStream inputStream;  // Input file (run) being read
+    ObjectOutputStream outputStream;// Output file (run) being written
+    Operator base;                  // Base operator
 
     public ExternalSort(Operator base, int noOfBuffer, ArrayList<Integer> attrIndex, String direction) {
         super(OpType.JOIN);
@@ -59,10 +62,11 @@ public class ExternalSort extends Operator {
         try {
             createRuns();
         } catch (IOException ex) {
-            System.out.println("ERROR: " + ex.getMessage());
+            System.out.println("EXTERNALSORT: " + ex.getMessage());
             return false;
         }
 
+        //There should be only one file at the end
         if (sortedFiles.size() != 1) {
             return false;
         }
@@ -78,6 +82,9 @@ public class ExternalSort extends Operator {
         return true;
     }
 
+    /**
+     * Creates sorted runs
+     */
     private void createRuns() throws IOException {
         int noOfRuns = 0;
         inbatch = base.next();
@@ -112,6 +119,9 @@ public class ExternalSort extends Operator {
         }
     }
 
+    /**
+     * Preparing the merging process
+     */
     private void mergeRuns() throws IOException {
         int noOfRuns = 0;
         List<File> result;
@@ -131,6 +141,9 @@ public class ExternalSort extends Operator {
         }
     }
 
+    /**
+     * Performs the real merging process
+     */
     private File merge(List<File> runs, int numOfMergeRuns, int numOfMerges) throws IOException {
         int noOfRuns = runs.size();
         outbatch = new Batch(batchsize);
@@ -232,6 +245,7 @@ public class ExternalSort extends Operator {
     @Override
     public boolean close() {
         try {
+            //Clean up the temporarily files
             for (File file : sortedFiles) {
                 file.delete();
             }
