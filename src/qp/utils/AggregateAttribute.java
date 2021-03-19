@@ -2,17 +2,19 @@ package qp.utils;
 
 public class AggregateAttribute {
 
-    private final int attrIndex;
-    private final int aggType;
-    private final int attrType;
+    public final int attrIndex;
+    public final int aggType;
+    public final int attrType;
     private int count;
     private float sum;
     private Object aggVal;
+    public final String colName;
 
-    public AggregateAttribute(int attrIndex, int aggType, int attrType) {
+    public AggregateAttribute(int attrIndex, int aggType, int attrType, String colName) {
         this.attrIndex = attrIndex;
         this.aggType = aggType;
         this.attrType = attrType;
+        this.colName = colName;
 
         switch (aggType) {
         case Attribute.MAX:
@@ -38,7 +40,11 @@ public class AggregateAttribute {
         switch (attrType) {
             /* INT only supports MAX, MIN, SUM and COUNT. AVG projected type is REAL. */
             case Attribute.INT:
-                int intVal = ((Number) val).intValue();
+                int intVal = 0;
+                //Guard clause to prevent parsing STRING into INT for COUNT operation
+                if (val instanceof Number) {
+                    intVal = ((Number) val).intValue();
+                }
                 switch (aggType) {
                 case Attribute.MAX:
                     if (aggVal == null) {
@@ -67,8 +73,9 @@ public class AggregateAttribute {
                 String stringVal = val.toString();
                 switch (aggType) {
                 case Attribute.MAX:
-                    if (aggVal == null || stringVal.compareTo((String) aggVal) > 0)
+                    if (aggVal == null || stringVal.compareTo((String) aggVal) > 0) {
                         aggVal = stringVal;
+                    }
                     break;
                 case Attribute.MIN:
                     if (aggVal == null || stringVal.compareTo((String) aggVal) < 0)
