@@ -31,70 +31,85 @@ public class Project extends Operator {
      * index of the attributes in the base operator
      * * that are to be projected
      **/
-    int[] attrIndex;                 // Set of attributes index to aggregate
+    int[] attrIndex;                       // Set of attributes index to aggregate
 
-    boolean isAggregation;           // Flag used to differentiate Project and Aggregate
-    Aggregate aggregate;             // Aggregate attribute to instantiate the helper class
-    List<AggregateAttribute> aaList; // List of AggregationAttribute to find index from the incoming Aggregate Batch file
+    boolean isAggregation;                 // Flag used to differentiate Project and Aggregate
+    Aggregate aggregate;                   // Aggregate attribute to instantiate the helper class
+    List<AggregateAttribute> aggrAttrList; // List of AggregationAttribute to find index from the incoming Aggregate Batch file
 
+    /**
+     * Default Constructor for Project which performs the Projection Query.
+     * {@code isAggregation} is by default false.
+     * @param base  Base Operator
+     * @param as    Projection's Attribute Set
+     * @param type  Type of {@code Operator}
+     */
     public Project(Operator base, ArrayList<Attribute> as, int type) {
         super(type);
         this.base = base;
         this.attrset = as;
         this.isAggregation = false;
-        this.aaList = new ArrayList<>();
+        this.aggrAttrList = new ArrayList<>();
     }
 
+    /**
+     * Getter for Base
+     */
     public Operator getBase() {
         return base;
     }
 
+    /**
+     * Setter for Base
+     */
     public void setBase(Operator base) {
         this.base = base;
     }
 
+    /**
+     * Getter for AttrSet
+     */
     public ArrayList<Attribute> getProjAttr() {
         return attrset;
     }
 
     /**
      * Opens the connection to the base operator
-     * * Also figures out what are the columns to be
-     * * projected from the base operator
+     * Also figures out what are the columns to be projected from the base operator
+     * If the column has an Aggregate Type, performs the pre-processing for Aggregation Query.
      **/
     public boolean open() {
-        /** set number of tuples per batch **/
+        /* set number of tuples per batch */
         int tuplesize = schema.getTupleSize();
         batchsize = Batch.getPageSize() / tuplesize;
 
         if (!base.open()) return false;
 
-        /** The following loop finds the index of the columns that
-         ** are required from the base operator
-         **/
+        /* The following loop finds the index of the columns that are required from the base operator */
         Schema baseSchema = base.getSchema();
         attrIndex = new int[attrset.size()];
         for (int i = 0; i < attrset.size(); ++i) {
             Attribute attr = attrset.get(i);
             int index = baseSchema.indexOf(attr.getBaseAttribute());
             attrIndex[i] = index;
+            /* The attribute has an aggregation type */
             if (attr.getAggType() != Attribute.NONE) {
+                /* Sets the attribute type */
                 attr.setType(baseSchema.getAttribute(index).getType());
-                isAggregation = true;
-
+                isAggregation = true; // Set the flag to true to perform the correct next() method
                 int attrProjectType = attr.getProjectedType();
-                if (attrProjectType == Attribute.INVALID) {
+                if (attrProjectType == Attribute.INVALID) { // Invalid operation on this data type
                     System.out.println("Data type STRING is invalid for AVG/SUM operator.");
                     return false;
                 }
-
-                aaList.add(new AggregateAttribute(index, attr.getAggType(), attrProjectType, attr.getColName()));
+                // Creates a new AggregateAttribute, added to a List which to be processed.
+                aggrAttrList.add(new AggregateAttribute(index, attr.getAggType(), attrProjectType, attr.getColName()));
             }
         }
 
         if (isAggregation) {
-            aggregate = new Aggregate(base, attrset, tuplesize, attrIndex, aaList);
-            aggregate.open();
+            aggregate = new Aggregate(base, attrset, tuplesize, attrIndex, aggrAttrList);
+            aggregate.open(); // Performs aggregation computation
         }
 
         return true;
@@ -105,22 +120,27 @@ public class Project extends Operator {
      */
     public Batch next() {
         outbatch = new Batch(batchsize);
-        /** all the tuples in the inbuffer goes to the output buffer **/
+        /* all the tuples in the inbuffer goes to the output buffer */
+        /* If this is an Aggregation Operation, calls the input buffer pages from Aggregate instead */
         inbatch = isAggregation ? aggregate.next() : base.next();
 
         if (inbatch == null) {
             return null;
         }
 
-        // Isolate projection and aggregation
-        if (!isAggregation) {
-            projectNext();
-        } else {
+        // Performs aggregation or projection
+        // Isolating both tuple calls to avoid disruption if there is any failure in processing.
+        if (isAggregation) {
             aggregationNext();
+        } else {
+            projectNext();
         }
         return outbatch;
     }
 
+    /**
+     * Read next tuple from operator
+     */
     private void projectNext() {
         for (int i = 0; i < inbatch.size(); i++) {
             Tuple basetuple = inbatch.get(i);
@@ -136,6 +156,9 @@ public class Project extends Operator {
         }
     }
 
+    /**
+     * Read next tuple from operator and determine which column and tuple to be written out.
+     */
     private void aggregationNext() {
         for (int i = 0; i < inbatch.size(); i++) {
             Tuple basetuple = inbatch.get(i);
@@ -144,18 +167,20 @@ public class Project extends Operator {
                 Attribute attr = attrset.get(j);
                 int index = attrIndex[j];
                 int aggType = attr.getAggType();
+                /* The attribute has an aggregation type */
                 if (aggType != Attribute.NONE) {
-                    //Search for the aggregation attribute by matching aggType and attrIndex
-                    Optional<AggregateAttribute> aggAttr = aaList.stream()
+                    // Search for a AggregateAttribute that has a matching aggType and attrIndex
+                    Optional<AggregateAttribute> aggAttr = aggrAttrList.stream()
                             .filter(x -> x.aggType == aggType && x.attrIndex == index)
                             .findFirst();
 
                     if (aggAttr.isPresent()) {
-                        //If aggregation is present, then we retrieve the data which are appended to the end of the columns
-                        Object data = basetuple.dataAt(base.getSchema().getNumCols() + aaList.indexOf(aggAttr.get()));
+                        // If aggregation is present, then we retrieve the data which are appended to the end of the columns
+                        Object data = basetuple.dataAt(base.getSchema().getNumCols() + aggrAttrList.indexOf(aggAttr.get()));
                         present.add(data);
                     }
                 } else {
+                    // Else, add the requested attribute normally
                     Object data = basetuple.dataAt(attrIndex[j]);
                     present.add(data);
                 }
@@ -198,7 +223,8 @@ public class Project extends Operator {
      */
     public boolean close() {
         inbatch = null;
-        if(aggregate != null)
+        // If aggregate is not null, close it too.
+        if (aggregate != null)
             aggregate.close();
         base.close();
         return true;

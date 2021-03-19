@@ -3,6 +3,10 @@ package qp.utils;
 import java.io.Serializable;
 import java.util.ArrayList;
 
+/**
+ * Helper class Block, which acts as multiple batches
+ * Methods are similar to {@code Batch} except there is an additional ArrayList of batches
+ */
 public class Block implements Serializable {
     int maxSize;
     int pageSize;
@@ -30,7 +34,7 @@ public class Block implements Serializable {
     }
 
     public void addBatch(Batch batch) {
-        if(!isFull()) {
+        if (!isFull()) {
             batches.add(batch);
             for (int i = 0; i < batch.size(); i++) {
                 tuples.add(batch.get(i));
@@ -38,9 +42,13 @@ public class Block implements Serializable {
         }
     }
 
+    public ArrayList<Tuple> getTuples() {
+        return tuples;
+    }
+
     public void setTuples(ArrayList tupleList) {
         Batch batch = new Batch(pageSize);
-        for(int i = 0; i < tupleList.size(); i++) {
+        for (int i = 0; i < tupleList.size(); i++) {
             if (batch.isFull()) {
                 batches.add(batch);
                 batch = new Batch(pageSize);
@@ -52,10 +60,6 @@ public class Block implements Serializable {
         if (!batch.isEmpty()) {
             batches.add(batch);
         }
-    }
-
-    public ArrayList<Tuple> getTuples() {
-        return tuples;
     }
 
     public Tuple getTuple(int index) {

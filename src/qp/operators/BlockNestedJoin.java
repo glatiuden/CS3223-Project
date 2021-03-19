@@ -1,14 +1,22 @@
-/** Block Nested Loop Join Algorithm */
 package qp.operators;
+
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 
 import qp.utils.Attribute;
 import qp.utils.Batch;
 import qp.utils.Condition;
 import qp.utils.Tuple;
 
-import java.io.*;
-import java.util.ArrayList;
-
+/**
+ * Block Nested Loop Join Algorithm
+ */
 public class BlockNestedJoin extends Join {
 
     static int filenum = 0;         // To get unique filenum for this operation
@@ -34,7 +42,7 @@ public class BlockNestedJoin extends Join {
         numBuff = jn.getNumBuff();
     }
 
-        /**
+    /**
      * During open finds the index of the join attributes
      * * Materializes the right hand side into a file
      * * Opens the connections
@@ -42,22 +50,22 @@ public class BlockNestedJoin extends Join {
     public boolean open() {
 
         int pageSize = Batch.getPageSize();
-        /** select number of tuples per batch **/
+        /* select number of tuples per batch */
         int tuplesize = schema.getTupleSize();
 
         assert tuplesize > 0 : "The size of a tuple should be at least 1 byte!";
 
         batchsize = pageSize / tuplesize;
-        
+
         blocksize = (numBuff - 2) * batchsize;
 
-        /** Throw error if a tuple cannot be fit into a page */
+        /* Throw error if a tuple cannot be fit into a page */
         if (pageSize < tuplesize) {
             System.err.println("Page size is smaller than the size of a tuple!");
             return false;
         }
-        
-        /** find indices attributes of join conditions **/
+
+        /* find indices attributes of join conditions */
         leftindex = new ArrayList<>();
         rightindex = new ArrayList<>();
         for (Condition con : conditionList) {
@@ -126,7 +134,7 @@ public class BlockNestedJoin extends Join {
                     eosl = true;
                     return outbatch;
                 }
-                
+
                 /** Whenever a new left page came, we have to start the
                  ** scanning of right table
                  **/
@@ -193,7 +201,7 @@ public class BlockNestedJoin extends Join {
 
     @Override
     public Batch getBlock(int sizeofblock) {
-    	return next();
+        return next();
     }
 
     /**

@@ -12,7 +12,7 @@ import qp.utils.Batch;
 import qp.utils.Tuple;
 
 /**
- * Helper class to support Aggregation Computation
+ * This class functions as a Helper Class to support the Aggregate Computation
  **/
 public class Aggregate extends Operator {
     Operator base;                          // Base table to project
@@ -26,7 +26,13 @@ public class Aggregate extends Operator {
     List<AggregateAttribute> aggrAttrList;  // ArrayList of aggregated values
 
     /**
-     * Default constructor for Aggregate, instantiated from Project
+     * Default constructor for Aggregate, which is instantiated from {@code Project.java}
+     *
+     * @param base         Base Operator
+     * @param as           Projection's Attribute Set
+     * @param tuplesize    Tuple Size
+     * @param attrIndex    Projection's Attribute Index
+     * @param aggrAttrList List of {@code AggregateAttribute}
      */
     public Aggregate(Operator base, ArrayList<Attribute> as, int tuplesize, int[] attrIndex,
                      List<AggregateAttribute> aggrAttrList) {
@@ -47,8 +53,9 @@ public class Aggregate extends Operator {
     }
 
     /**
-     * Opens the connection to the base operator
-     * Computes the aggregation value
+     * Opens the connection to the base operator, loop through the tuples to compute the aggregation value.
+     * Computed value are stored and updated as an attribute in {@code AggregateAttribute}.
+     * The tuples are then copied over to input buffer - {@code inbatch} for processing.
      **/
     @Override
     public boolean open() {
@@ -58,16 +65,20 @@ public class Aggregate extends Operator {
         while ((tempbatch = base.next()) != null) {
             while (!tempbatch.isEmpty()) {
                 Tuple tuple = tempbatch.removeFirst();
-                for (AggregateAttribute aggAttr: aggrAttrList) {
+                for (AggregateAttribute aggAttr : aggrAttrList) {
                     aggAttr.setAggVal(tuple);
                 }
                 inbatch.add(tuple);
             }
         }
-
         return true;
     }
 
+    /**
+     * Read next tuple from operator
+     * It keeps the original tuple's data and appending the aggregate values as new columns to the end of the tuples
+     * Performs until all the inbatch of tuples are processed.
+     */
     @Override
     public Batch next() {
         outbatch = new Batch(batchsize);
@@ -79,11 +90,15 @@ public class Aggregate extends Operator {
 
         while (!outbatch.isFull() && !inbatch.isEmpty()) {
             Tuple tuple = inbatch.removeFirst();
-            // Extract out the attribute in list
+            /* Extract out the Attribute Column Name and store in a list.
+               This is then used later to obtain the object index in the data's ArrayList */
             List<String> attList = base.getSchema().getAttList().stream().map(Attribute::getColName)
                     .collect(Collectors.toList());
+
             // Retain the original tuple's data
             ArrayList<Object> present = new ArrayList<>(tuple.data());
+
+            // Flag to indicate whether to write the output to the output buffer
             boolean output = true;
 
             // Append the aggregated value to the end of the tuple
@@ -92,19 +107,22 @@ public class Aggregate extends Operator {
                 if (attr.getAggType() != Attribute.NONE) {
                     int aggType = attr.getAggType();
                     int index = attrIndex[j];
+
+                    /* Obtain the AggregateAttribute that has the exact same attribute index and aggregation type */
                     Optional<AggregateAttribute> aggAttr = aggrAttrList.stream()
                             .filter(x -> x.aggType == aggType && x.attrIndex == index)
                             .findFirst();
 
+                    /* If the AggregateAttribute exist, append it to the data's ArrayList */
                     if (aggAttr.isPresent()) {
                         Object data = aggAttr.get().getAggVal();
                         present.add(data);
                     }
                 }
 
-                // If we have reached the end of column population, decides which tuple to be output
+                // If we have reached the end of columns population process, decides which tuple to be output
+                // There should be only one final output only.
                 if (j == attrset.size() - 1) {
-                    // There should be only one final output
                     // If there is a MIN operator, then we output the non-aggregated column that is from MIN.
                     if (aggrAttrList.stream().anyMatch(x -> x.aggType == Attribute.MIN || x.aggType == Attribute.MAX)) {
                         Optional<AggregateAttribute> min = aggrAttrList.stream().filter(x -> x.aggType == Attribute.MIN).findFirst();
@@ -115,6 +133,7 @@ public class Aggregate extends Operator {
                                 output = false;
                             }
                         } else {
+                            // If there is a MAX operator, then we output the non-aggregated column that is from MAX.
                             Optional<AggregateAttribute> max = aggrAttrList.stream().filter(x -> x.aggType == Attribute.MAX).findFirst();
                             if (max.isPresent()) {
                                 AggregateAttribute maxVal = max.get();
@@ -133,7 +152,7 @@ public class Aggregate extends Operator {
 
             if (output) {
                 Tuple outtuple = new Tuple(present);
-                if (!outbatch.isContains(outtuple)) { //Only unique tuples
+                if (!outbatch.isContains(outtuple)) { // Only unique tuples to be written out
                     outbatch.add(outtuple);
                 }
             }
@@ -141,6 +160,7 @@ public class Aggregate extends Operator {
         return outbatch;
     }
 
+    @Override
     public boolean close() {
         inbatch = null;
         base.close();

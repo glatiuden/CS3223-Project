@@ -17,6 +17,9 @@ import qp.utils.Batch;
 import qp.utils.Block;
 import qp.utils.Tuple;
 
+/**
+ * External Sort Algorithm
+ */
 public class ExternalSort extends Operator {
     int batchsize;                  // Number of tuples per out batch
     int noOfBuffer;                 // Number of buffers (B)
@@ -59,6 +62,8 @@ public class ExternalSort extends Operator {
         }
 
         sortedFiles = new ArrayList<>();
+        // Try creating sorted runs
+        // If any exception encountered, it will be captured here and error message will be printed accordingly.
         try {
             createRuns();
         } catch (IOException ex) {
@@ -83,7 +88,7 @@ public class ExternalSort extends Operator {
     }
 
     /**
-     * Creates sorted runs
+     * Creates sorted runs by load data into buffer to perform in-memory sort by using {@code comparator}.
      */
     private void createRuns() throws IOException {
         int noOfRuns = 0;
@@ -105,6 +110,9 @@ public class ExternalSort extends Operator {
         mergeRuns();
     }
 
+    /**
+     * Write out to temporary file
+     */
     private void write(Block run, int noOfRuns) throws IOException {
         try {
             File f = new File(generateRunFileName(noOfRuns));
@@ -120,7 +128,7 @@ public class ExternalSort extends Operator {
     }
 
     /**
-     * Preparing the merging process
+     * Runs through the sorted files (runs) and calls merge() to do the actual merging
      */
     private void mergeRuns() throws IOException {
         int noOfRuns = 0;
@@ -142,20 +150,22 @@ public class ExternalSort extends Operator {
     }
 
     /**
-     * Performs the real merging process
+     * Performs one pass of merging process
+     * The body of the actual merging process
      */
     private File merge(List<File> runs, int numOfMergeRuns, int numOfMerges) throws IOException {
-        int noOfRuns = runs.size();
+        int runSize = runs.size();
         outbatch = new Batch(batchsize);
 
         if (runs.isEmpty()) {
             throw new IOException("There is no runs available.");
         }
 
-        if (noOfRuns > noOfAvailBuffer) {
+        if (runSize > noOfAvailBuffer) {
             throw new IOException("Exceed the number of available buffers (B-1)");
         }
 
+        /* Populate the batches arraylist */
         ArrayList<Batch> batches = new ArrayList<>();
         for (File f : runs) {
             try {
@@ -201,6 +211,10 @@ public class ExternalSort extends Operator {
         return file;
     }
 
+    /**
+     * Attempt to write out the output buffer page
+     * @throws IOException if error encountered
+     */
     private void writeOut() throws IOException {
         try {
             outputStream.writeObject(outbatch);
@@ -210,6 +224,9 @@ public class ExternalSort extends Operator {
         }
     }
 
+    /**
+     * Reads in the next batch using stream
+     */
     private Batch nextBatch(ObjectInputStream stream) throws IOException {
         try {
             Batch batch = (Batch) stream.readObject();

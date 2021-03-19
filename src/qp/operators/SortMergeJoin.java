@@ -7,6 +7,9 @@ import qp.utils.Batch;
 import qp.utils.Condition;
 import qp.utils.Tuple;
 
+/**
+ * Sort Merge Join Algorithm
+ */
 public class SortMergeJoin extends Join {
     int batchsize;                  // Number of tuples per out batch
     ExternalSort leftsort;          // Sort Operator on left
@@ -133,6 +136,10 @@ public class SortMergeJoin extends Join {
         }
     }
 
+    /**
+     * Performs the comparison of sorted tuples by advancing the left and right pointers
+     * If there is a match, write to the output buffer
+     */
     @Override
     public Batch next() {
         outbatch = new Batch(batchsize);
@@ -198,6 +205,10 @@ public class SortMergeJoin extends Join {
         }
     }
 
+    /**
+     * Retrieval of Right Tuple
+     * @return rightTuple
+     */
     private Tuple getRightTuple() {
         if (temp.size() == 0) {
             return rightbatch.get(rcurs);
