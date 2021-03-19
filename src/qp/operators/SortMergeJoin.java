@@ -7,17 +7,21 @@ import qp.utils.Batch;
 import qp.utils.Condition;
 import qp.utils.Tuple;
 
-
 public class SortMergeJoin extends Join {
-    int batchsize;
-    ExternalSort leftsort, rightsort;
-    ArrayList<Integer> leftindex, rightindex;
-    ArrayList<Tuple> backup = new ArrayList<>();
+    int batchsize;                  // Number of tuples per out batch
+    ExternalSort leftsort;          // Sort Operator on left
+    ExternalSort rightsort;         // Sort Operator on right
+    ArrayList<Integer> leftindex;   // Indices of the join attributes in left table
+    ArrayList<Integer> rightindex;  // Indices of the join attributes in right table
+    ArrayList<Tuple> temp;          // Temporary ArrayList of Tuples
 
-    Batch leftbatch, rightbatch, outbatch;
-    int lcurs, rcurs;
-    int tempcurs = -1;
-    boolean eos;
+    Batch outbatch;                 // Buffer page for output
+    Batch leftbatch;                // Buffer page for left input stream
+    Batch rightbatch;               // Buffer page for right input stream
+    int lcurs;                      // Cursor for left side buffer
+    int rcurs;                      // Cursor for right side buffer
+    int tempcurs = -1;              // Temporary cursor
+    boolean eos;                    // Indicate whether end of stream is reached or not
 
     public SortMergeJoin(Join jn) {
         super(jn.getLeft(), jn.getRight(), jn.getCondition(), jn.getOpType());
@@ -26,6 +30,7 @@ public class SortMergeJoin extends Join {
         numBuff = jn.getNumBuff();
         leftindex = new ArrayList<>();
         rightindex = new ArrayList<>();
+        temp = new ArrayList<>();
     }
 
     @Override
@@ -33,11 +38,13 @@ public class SortMergeJoin extends Join {
         int tupleSize = schema.getTupleSize();
         this.batchsize = Batch.getPageSize() / tupleSize;
 
+        /** Throw error if page size is smaller than tuple size */
         if (batchsize < 1) {
             System.err.println("Error: Page size must be bigger than tuple size for joining.");
             return false;
         }
 
+        /** find indices attributes of join conditions **/
         for (Condition con : this.conditionList) {
             Attribute leftattr = con.getLhs();
             Attribute rightattr = (Attribute) con.getRhs();
@@ -81,25 +88,25 @@ public class SortMergeJoin extends Join {
 
                 while (Tuple.compareTuples(lefttuple, righttuple, leftindex, rightindex) > 0) {
                     rcurs++;
-                    if (rightbatch != null && rcurs >= rightbatch.size() + backup.size()) {
-                        backup.addAll(rightbatch.getTuples());
+                    if (rightbatch != null && rcurs >= rightbatch.size() + temp.size()) {
+                        temp.addAll(rightbatch.getTuples());
                         rightbatch = rightsort.next();
                     }
                     if (rightbatch == null) break;
                     righttuple = getRightTuple();
                 }
-                if (rcurs >= backup.size()) {
-                    rcurs -= backup.size();
+                if (rcurs >= temp.size()) {
+                    rcurs -= temp.size();
                 }
                 tempcurs = rcurs;
-                backup.clear();
+                temp.clear();
             }
 
             if (Tuple.compareTuples(lefttuple, righttuple, leftindex, rightindex) == 0) {
                 outbatch.add(lefttuple.joinWith(righttuple));
                 rcurs++;
-                if (rightbatch != null && rcurs >= rightbatch.size() + backup.size()) {
-                    backup.addAll(rightbatch.getTuples());
+                if (rightbatch != null && rcurs >= rightbatch.size() + temp.size()) {
+                    temp.addAll(rightbatch.getTuples());
                     rightbatch = rightsort.next();
                 }
                 if (rightbatch == null) break;
@@ -146,25 +153,25 @@ public class SortMergeJoin extends Join {
 
                 while (Tuple.compareTuples(lefttuple, righttuple, leftindex, rightindex) > 0) {
                     rcurs++;
-                    if (rightbatch != null && rcurs >= rightbatch.size() + backup.size()) {
-                        backup.addAll(rightbatch.getTuples());
+                    if (rightbatch != null && rcurs >= rightbatch.size() + temp.size()) {
+                        temp.addAll(rightbatch.getTuples());
                         rightbatch = rightsort.next();
                     }
                     if (rightbatch == null) break;
                     righttuple = getRightTuple();
                 }
-                if (rcurs >= backup.size()) {
-                    rcurs -= backup.size();
+                if (rcurs >= temp.size()) {
+                    rcurs -= temp.size();
                 }
                 tempcurs = rcurs;
-                backup.clear();
+                temp.clear();
             }
 
             if (Tuple.compareTuples(lefttuple, righttuple, leftindex, rightindex) == 0) {
                 outbatch.add(lefttuple.joinWith(righttuple));
                 rcurs++;
-                if (rightbatch != null && rcurs >= rightbatch.size() + backup.size()) {
-                    backup.addAll(rightbatch.getTuples());
+                if (rightbatch != null && rcurs >= rightbatch.size() + temp.size()) {
+                    temp.addAll(rightbatch.getTuples());
                     rightbatch = rightsort.next();
                 }
                 if (rightbatch == null) break;
@@ -192,17 +199,20 @@ public class SortMergeJoin extends Join {
     }
 
     private Tuple getRightTuple() {
-        if (backup.size() == 0) {
+        if (temp.size() == 0) {
             return rightbatch.get(rcurs);
         } else {
-            if (rcurs < backup.size()) {
-                return backup.get(rcurs);
+            if (rcurs < temp.size()) {
+                return temp.get(rcurs);
             } else {
-                return rightbatch.get(rcurs - backup.size());
+                return rightbatch.get(rcurs - temp.size());
             }
         }
     }
 
+    /**
+     * Close the operator
+     */
     @Override
     public boolean close() {
         leftsort.close();
