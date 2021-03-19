@@ -19,24 +19,29 @@ public class Project extends Operator {
     Operator base;                 // Base table to project
     ArrayList<Attribute> attrset;  // Set of attributes to project
     int batchsize;                 // Number of tuples per outbatch
-    Batch inbatch;
-    Batch outbatch;
-    int[] attrIndex;
 
-    boolean isAggregation;
-    boolean isExecuted;
+    /**
+     * The following fields are requied during execution
+     * * of the Project Operator
+     **/
+    Batch inbatch;                    // Buffer page for input
+    Batch outbatch;                   // Buffer page for output
 
-    Aggregate aggregate;
-    Tuple previousTuple;
-    List<AggregateAttribute> aaList;
+    /**
+     * index of the attributes in the base operator
+     * * that are to be projected
+     **/
+    int[] attrIndex;                 // Set of attributes index to aggregate
+
+    boolean isAggregation;           // Flag used to differentiate Project and Aggregate
+    Aggregate aggregate;             // Aggregate attribute to instantiate the helper class
+    List<AggregateAttribute> aaList; // List of AggregationAttribute to find index from the incoming Aggregate Batch file
 
     public Project(Operator base, ArrayList<Attribute> as, int type) {
         super(type);
         this.base = base;
         this.attrset = as;
         this.isAggregation = false;
-        this.previousTuple = null;
-        this.isExecuted = false;
         this.aaList = new ArrayList<>();
     }
 
@@ -83,7 +88,7 @@ public class Project extends Operator {
                     return false;
                 }
 
-                aaList.add(new AggregateAttribute(index, attr.getAggType(), attrProjectType));
+                aaList.add(new AggregateAttribute(index, attr.getAggType(), attrProjectType, attr.getColName()));
             }
         }
 
@@ -107,50 +112,60 @@ public class Project extends Operator {
             return null;
         }
 
-        if (!isExecuted) {
-            for (int i = 0; i < inbatch.size(); i++) {
-                Tuple basetuple = inbatch.get(i);
-                ArrayList<Object> present = new ArrayList<>();
-                for (int j = 0; j < attrset.size(); j++) {
-                    Attribute attr = attrset.get(j);
-                    int index = attrIndex[j];
-                    int aggType = attr.getAggType();
-                    if (aggType != Attribute.NONE) {
-                        //Output Minimum Tuples if it is any of the aggregation type below
-                        //Max and Min is handled by Aggregation.java itself
-                        isExecuted = aggType == Attribute.SUM || aggType == Attribute.COUNT || aggType == Attribute.AVG;
-
-                        //Search for the aggregation attribute by matching aggType and attrIndex
-                        Optional<AggregateAttribute> aggAttr = aaList.stream()
-                                .filter(x -> x.aggType == aggType && x.attrIndex == index)
-                                .findFirst();
-
-                        if (aggAttr.isPresent()) {
-                            //If aggregation is present, then we retrieve the data which are appended to the end of the columns
-                            Object data = basetuple.dataAt(base.getSchema().getNumCols() + aaList.indexOf(aggAttr.get()));
-                            present.add(data);
-                        }
-                    } else {
-                        Object data = basetuple.dataAt(attrIndex[j]);
-                        present.add(data);
-                    }
-                }
-
-                Tuple outtuple = new Tuple(present);
-                if (isAggregation) {
-                    if (!outbatch.isContains(outtuple)) { //Eliminates duplicates
-                        outbatch.add(outtuple);
-                    }
-
-                    if (isExecuted && outbatch.size() == 1) {
-                        break;
-                    }
-                } else {
-                    outbatch.add(outtuple);
-                }
-            }
+        // Isolate projection and aggregation
+        if (!isAggregation) {
+            projectNext();
+        } else {
+            aggregationNext();
         }
         return outbatch;
+    }
+
+    private void projectNext() {
+        for (int i = 0; i < inbatch.size(); i++) {
+            Tuple basetuple = inbatch.get(i);
+            //Debug.PPrint(basetuple);
+            //System.out.println();
+            ArrayList<Object> present = new ArrayList<>();
+            for (int j = 0; j < attrset.size(); j++) {
+                Object data = basetuple.dataAt(attrIndex[j]);
+                present.add(data);
+            }
+            Tuple outtuple = new Tuple(present);
+            outbatch.add(outtuple);
+        }
+    }
+
+    private void aggregationNext() {
+        for (int i = 0; i < inbatch.size(); i++) {
+            Tuple basetuple = inbatch.get(i);
+            ArrayList<Object> present = new ArrayList<>();
+            for (int j = 0; j < attrset.size(); j++) {
+                Attribute attr = attrset.get(j);
+                int index = attrIndex[j];
+                int aggType = attr.getAggType();
+                if (aggType != Attribute.NONE) {
+                    //Search for the aggregation attribute by matching aggType and attrIndex
+                    Optional<AggregateAttribute> aggAttr = aaList.stream()
+                            .filter(x -> x.aggType == aggType && x.attrIndex == index)
+                            .findFirst();
+
+                    if (aggAttr.isPresent()) {
+                        //If aggregation is present, then we retrieve the data which are appended to the end of the columns
+                        Object data = basetuple.dataAt(base.getSchema().getNumCols() + aaList.indexOf(aggAttr.get()));
+                        present.add(data);
+                    }
+                } else {
+                    Object data = basetuple.dataAt(attrIndex[j]);
+                    present.add(data);
+                }
+            }
+
+            Tuple outtuple = new Tuple(present);
+            if (!outbatch.isContains(outtuple)) { // Eliminates duplicates
+                outbatch.add(outtuple);
+            }
+        }
     }
 
     /**
@@ -183,6 +198,8 @@ public class Project extends Operator {
      */
     public boolean close() {
         inbatch = null;
+        if(aggregate != null)
+            aggregate.close();
         base.close();
         return true;
     }

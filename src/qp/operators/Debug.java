@@ -17,9 +17,9 @@ public class Debug {
         String tabname = attr.getTabName();
         String colname = attr.getColName();
         if (aggregate == 0) {
-            System.out.print(tabname + "." + colname);
+            System.out.print("(" + tabname + "." + colname + ")");
         } else {
-            System.out.print(aggregates[aggregate] + "(" + tabname + "." + colname + ")");
+            System.out.print("(" + aggregates[aggregate] + "(" + tabname + "." + colname + "))");
         }
     }
 

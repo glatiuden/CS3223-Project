@@ -8,11 +8,13 @@ public class AggregateAttribute {
     private int count;
     private float sum;
     private Object aggVal;
+    public final String colName;
 
-    public AggregateAttribute(int attrIndex, int aggType, int attrType) {
+    public AggregateAttribute(int attrIndex, int aggType, int attrType, String colName) {
         this.attrIndex = attrIndex;
         this.aggType = aggType;
         this.attrType = attrType;
+        this.colName = colName;
 
         switch (aggType) {
         case Attribute.MAX:
@@ -39,7 +41,7 @@ public class AggregateAttribute {
             /* INT only supports MAX, MIN, SUM and COUNT. AVG projected type is REAL. */
             case Attribute.INT:
                 int intVal = 0;
-                //Guard Statement in case it is doing COUNT on STRING
+                //Guard clause to prevent parsing STRING into INT for COUNT operation
                 if (val instanceof Number) {
                     intVal = ((Number) val).intValue();
                 }
