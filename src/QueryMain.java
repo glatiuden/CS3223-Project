@@ -130,6 +130,10 @@ public class QueryMain {
 
         root = RandomOptimizer.makeExecPlan(planroot);
 
+        if(planroot.isDistinct()){
+            root.setIsDistinct(true);
+        }
+
         return root;
     }
 

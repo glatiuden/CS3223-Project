@@ -51,7 +51,15 @@ In addition to the given SPJ (Select-Project-Join) query engine, our team implem
 
    View The Code: [SortMergeJoin.java](https://github.com/Sharptail/KAJ-Query-Engine/blob/master/src/qp/operators/SortMergeJoin.java)
 
-3) **Distinct** based on ExternalSortMerge and SortedRunComparator
+3) **Distinct** 
+   
+    Implementation of Distinct to remove duplicates tuples in the query result.
+   
+    Stores a list of printed tuples in an ArrayList and compare it with the next tuple that is going to be printed as shown in [QueryMain.java](https://github.com/Sharptail/KAJ-Query-Engine/blob/60b16ff4930970e208efd3b795f327d16bc92e52/src/QueryMain.java#L182)
+    
+    With an additional tuple comparison to compare every attribute of the tuples as shown in [Tuple.java](https://github.com/Sharptail/KAJ-Query-Engine/commit/f5461768f2bfe413d96d804971cf17e475fbe47b#diff-ad3531ca592a61a8c13fb4a70bd84c1ef571dc53c0f058fbad7b0b2191617929)
+
+
 4) **Aggregate** functions (MIN, MAX, COUNT, AVG, SUM)
 
    Implementation of Aggregate to support performing aggregation operator on a particular column of a table. Users can call either MIN, MAX, COUNT, AVG or SUM to
@@ -65,6 +73,7 @@ In addition to the given SPJ (Select-Project-Join) query engine, our team implem
    - If **MAX** or **MIN** operator is part of the query, the returned non-aggregated columns' value is from the same tuple as the aggregated value. In the scenario where both **MAX** and **MIN** are in the same query, then the returned non-aggregated columns' value is from the **MIN** tuple.
    - If other aggregate operators (**COUNT**, **AVG**, **SUM**) is part of the query, the returned non-aggregated columns' value will typically be the first tuple of the table. If there is **JOIN** performed, then the returned non-aggregated columns' value will be from the first **JOIN** output tuple.
      In most scenario, there should be only one tuple being returned.
+
 
 5) **OrderBy** (Supports DESC only)
 
