@@ -46,7 +46,7 @@ public class Operator {
     }
 
     public boolean isOrderByQuery() {
-        return orderbyList.size() > 0;
+        return (orderbyList.size() > 0);
     }
 
     public ArrayList<Attribute> getOrderByList() {

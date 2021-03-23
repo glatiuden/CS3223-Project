@@ -223,6 +223,8 @@ public class RandomOptimizer {
         System.out.println("\n\n\n");
         System.out.println("---------------------------Final Plan----------------");
         if(orderByList.size() > 0) {
+            finalPlan.setOrderByList(orderByList);
+            finalPlan.setIsDesc(this.sqlquery.isDesc());
             System.out.print("OrderBy(");
         }
         if(this.sqlquery.isDistinct()){
