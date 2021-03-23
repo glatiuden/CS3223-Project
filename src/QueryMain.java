@@ -246,40 +246,12 @@ public class QueryMain {
             Collections.sort(printedTuples, new Comparator<Tuple>() {
                 @Override
                 public int compare(Tuple t1, Tuple t2) {
-                    int compareValue = 0;
-                    for (int i = 0; i < indexList.size(); i++) {
-                        Object o1 = t1.dataAt(indexList.get(i));
-                        Object o2 = t2.dataAt(indexList.get(i));
-                        
-                        if (o1 instanceof Integer) {
-                            compareValue = root.IsDesc() 
-                                            ? ((Integer) o2) - ((Integer) o1) 
-                                            : ((Integer) o1) - ((Integer) o2);
-                        } else if (o1 instanceof String) {
-                            compareValue = root.IsDesc() 
-                                            ? ((String) o2).compareTo((String) o1) 
-                                            : ((String) o1).compareTo((String) o2);
-                        } else if (o1 instanceof Float) {
-                            compareValue = root.IsDesc() 
-                                            ? ((Float) o2).compareTo((Float) o1)
-                                            : ((Float) o1).compareTo((Float) o2);
-                        } else {
-                            System.out.println("Tuple: Unknown comparision of the tuples");
-                            System.exit(1);
-                            return 0;
-                        }
-                        
-                        // Use a attribute to sort the data
-                        // If value of current attribute for both tuples are the same 
-                        if (compareValue == 0)
-                            continue; 
-                        
-                        break;
-                        
+                    int compareResult = Tuple.compareTuples(t1, t2, indexList, indexList);
+                    if (compareResult != 0) {
+                        int multiplier = (root.IsDesc()) ? -1 : 1;
+                        return multiplier * compareResult;
                     }
-                    
-                    
-                    return compareValue;
+                    return 0;
                 }
             });
         }
