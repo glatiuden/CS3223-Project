@@ -1,12 +1,5 @@
-# KAJ-Query-Engine (CS3223 Database Systems Implementation Project)
-
-_AY2020/2021 Semester 2_, _School of Computing_, _National University of Singapore_
-
-## Team members
-
-- [Kong Jian Wei](https://github.com/sharptail)
-- [Koh Vinleon](https://github.com/glatiuden)
-- [Amos Cheong Jit Hon](https://github.com/Amoscheong97)
+# KAJ Query Engine
+An attempt to create a "DBMS" using Java.
 
 ## Project Summary
 
